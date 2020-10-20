@@ -1,11 +1,12 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, mixins, filters
-from rest_framework.permissions import IsAuthenticated, \
-    IsAuthenticatedOrReadOnly
+from rest_framework.permissions import (IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
+import django_filters.rest_framework
 
 from api.permissions import OwnResourcePermission
-from api.serializers import PostSerializer, CommentSerializer, \
-    FollowSerializer, GroupSerializer
+from api.serializers import (PostSerializer, CommentSerializer,
+                             FollowSerializer, GroupSerializer)
 from api.models import Post, Follow, Group
 
 
@@ -13,16 +14,11 @@ class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [OwnResourcePermission]
+    filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
+    filterset_fields = ['group']
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
-
-    def get_queryset(self):
-        queryset = Post.objects.all()
-        group = self.request.query_params.get('group', None)
-        if group is not None:
-            queryset = queryset.filter(group=group)
-        return queryset
 
 
 class CommentViewSet(viewsets.ModelViewSet):
@@ -38,27 +34,26 @@ class CommentViewSet(viewsets.ModelViewSet):
         return post.comments.all()
 
 
-class FollowViewSet(mixins.CreateModelMixin,
-                    mixins.ListModelMixin,
-                    viewsets.GenericViewSet):
+# increases readability of FollowViewSet and GroupViewSet
+class APIViewSet(mixins.CreateModelMixin,
+                 mixins.ListModelMixin,
+                 viewsets.GenericViewSet):
+    filter_backends = [filters.SearchFilter]
+    permission_classes = [IsAuthenticatedOrReadOnly, OwnResourcePermission]
+
+
+class FollowViewSet(APIViewSet):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    filter_backends = [filters.SearchFilter]
     search_fields = ('=user__username', '=following__username',)
 
     def perform_create(self, serializer):
-        if serializer.is_valid():
-            serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user)
 
 
-class GroupViewSet(mixins.CreateModelMixin,
-                   mixins.ListModelMixin,
-                   viewsets.GenericViewSet):
+class GroupViewSet(APIViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
-    permission_classes = [OwnResourcePermission]
 
     def perform_create(self, serializer):
-        title = self.request.data.get('title')
-        serializer.save(title=title)
+        serializer.save(title=self.request.data.get('title'))
