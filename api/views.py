@@ -10,6 +10,12 @@ from api.serializers import (PostSerializer, CommentSerializer,
 from api.models import Post, Follow, Group
 
 
+class APIViewSet(mixins.CreateModelMixin,
+                 mixins.ListModelMixin,
+                 viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticatedOrReadOnly, OwnResourcePermission]
+
+
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
@@ -34,17 +40,10 @@ class CommentViewSet(viewsets.ModelViewSet):
         return post.comments.all()
 
 
-# increases readability of FollowViewSet and GroupViewSet
-class APIViewSet(mixins.CreateModelMixin,
-                 mixins.ListModelMixin,
-                 viewsets.GenericViewSet):
-    filter_backends = [filters.SearchFilter]
-    permission_classes = [IsAuthenticatedOrReadOnly, OwnResourcePermission]
-
-
 class FollowViewSet(APIViewSet):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
+    filter_backends = [filters.SearchFilter]
     search_fields = ('=user__username', '=following__username',)
 
     def perform_create(self, serializer):
