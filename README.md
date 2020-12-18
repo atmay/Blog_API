@@ -1,2 +1,2 @@
-# api_final
-api final
+# API for Blog Yatube
+## Created while studying at Yandex.Praktikum
